@@ -1,9 +1,18 @@
-require 'acts_as_file'
+require 'acts_as_git'
+
+ActsAsGit.configure do |config|
+  config.email = 'test@test.com'
+  config.username = 'testuser'
+end
 
 class TestPost
-  include ActsAsFile
-  def filename
-    @filename ||= Tempfile.open('test_acts_as_file') {|f| f.path }.tap {|name| File.unlink(name) }
+  include ActsAsGit
+  def self.repodir
+    @@repodir = Dir.tmpdir
   end
-  acts_as_file :body => self.instance_method(:filename)
+
+  def filename
+    @filename = 'test_acts_as_git'
+  end
+  acts_as_git :body => self.instance_method(:filename)
 end

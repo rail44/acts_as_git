@@ -11,6 +11,6 @@ task :default => :spec
 
 desc 'Open an irb session preloaded with the gem library'
 task :console do
-  sh 'irb -rubygems -I lib -r acts_as_file'
+  sh 'irb -rubygems -I lib -r acts_as_git'
 end
 task :c => :console
