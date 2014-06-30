@@ -125,7 +125,7 @@ module ActsAsGit
               return nil unless repodir
               return nil unless filename
               return nil if @@repo.empty?
-              return nil unless fileob = commit.tree[filename]
+              return nil unless fileob = commit.tree.path(filename)
               oid = fileob[:oid]
               file = StringIO.new(@@repo.lookup(oid).content)
               file.seek(offset) if offset
