@@ -37,9 +37,9 @@ module ActsAsGit
       self.class_eval do
         unless method_defined?(:save_with_file)
 
-          def commit
-            if @commit
-              @commit
+          def current
+            if @current
+              @current
             else
              (@@repo.empty?)? nil: @@repo.head.target
             end
@@ -47,10 +47,6 @@ module ActsAsGit
 
           def is_changed?
             (@is_changed)? true: false
-          end
-
-          def get_commit
-            (commit)? commit.oid: nil
           end
 
           define_method :path do |field|
@@ -64,16 +60,20 @@ module ActsAsGit
             walker.sorting(Rugged::SORT_DATE)
             walker.push(@@repo.head.target)
             commits = []
-            commits = walker.map do |commit|
+            walker.map do |commit|
               if commit.diff(paths: [path(field)])
-                commit.oid
+                commit
               end
             end
-            commits
           end
 
           define_method :checkout do |commit|
-            @commit = (commit)? @@repo.lookup(commit): nil
+            @current = case commit
+            when Rugged::Commit
+              commit
+            when String
+              @current = (commit)? @@repo.lookup(commit): nil
+            end
             @is_changed = false
             params.each do |field, filename_instance_method|
               field = nil
@@ -109,9 +109,9 @@ module ActsAsGit
                 option = self.class.get_option(index)
                 option[:message] = "#{action} #{filename} for field #{field_name} of #{self.class.name}"
                 Rugged::Commit.create(@@repo, option)
-                @commit = @@repo.head.target
+                @current = @@repo.head.target
                 @is_changed = false
-                index.read_tree(@commit.tree)
+                index.read_tree(@current.tree)
                 index.write
                 instance_variable_set(field_name, nil)
               end
@@ -141,7 +141,7 @@ module ActsAsGit
               return nil unless repodir
               return nil unless filename
               return nil if @@repo.empty?
-              return nil unless fileob = commit.tree.path(filename)
+              return nil unless fileob = current.tree.path(filename)
               oid = fileob[:oid]
               file = StringIO.new(@@repo.lookup(oid).content)
               file.seek(offset) if offset
@@ -161,9 +161,9 @@ module ActsAsGit
                 option = self.class.get_option(index)
                 option[:message] = "Remove #{filename} for field #{field_name} of #{self.class.name}"
                 Rugged::Commit.create(@@repo, option)
-                @commit = @@repo.head.target
+                @current = @@repo.head.target
                 @is_changed = false
-                index.read_tree(@commit.tree)
+                index.read_tree(@current.tree)
                 index.write
               rescue Rugged::IndexError => e
               end

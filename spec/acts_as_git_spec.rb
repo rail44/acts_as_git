@@ -16,13 +16,13 @@ describe ActsAsGit do
     let(:commits) { [] }
     before { subject.body = 'aaaa' }
     before { subject.save }
-    before { commits << subject.get_commit }
+    before { commits << subject.current }
     before { subject.body = 'bbbb' }
     before { subject.save }
-    before { commits << subject.get_commit }
+    before { commits << subject.current }
     before { subject.body = 'cccc' }
     before { subject.save }
-    before { commits << subject.get_commit }
+    before { commits << subject.current }
     it { expect(subject.log(:body)).to be == commits.reverse }
   end
 
@@ -52,7 +52,7 @@ describe ActsAsGit do
       before do
         subject.body = 'aaaa'
         subject.save
-        @commit = subject.get_commit
+        @commit = subject.current
         subject.body = 'bbbb'
         subject.save
       end
