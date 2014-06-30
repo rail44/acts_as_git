@@ -36,9 +36,6 @@ module ActsAsGit
     def acts_as_git(params = {})
       self.class_eval do
         unless method_defined?(:save_with_file)
-          def self.path(filename)
-            File.join(repodir, filename)
-          end
 
           def commit
             if @commit
@@ -54,6 +51,25 @@ module ActsAsGit
 
           def get_commit
             (commit)? commit.oid: nil
+          end
+
+          define_method :path do |field|
+            filename = params[field].bind(self).call
+            File.join(self.class.repodir, filename)
+          end
+
+          define_method :log do |field|
+            filename = params[field].bind(self).call
+            walker = Rugged::Walker.new(@@repo)
+            walker.sorting(Rugged::SORT_DATE)
+            walker.push(@@repo.head.target)
+            commits = []
+            commits = walker.map do |commit|
+              if commit.diff(paths: [path(field)])
+                commit.oid
+              end
+            end
+            commits
           end
 
           define_method :checkout do |commit|
@@ -83,7 +99,7 @@ module ActsAsGit
               if repodir and filename and content
                 oid = @@repo.write(content, :blob)
                 index = @@repo.index
-                path = self.class.path(filename)
+                path = path(field)
                 action = File.exists?(path)? 'Update': 'Create'
                 FileUtils.mkdir_p(File.dirname(path))
                 File.open(path, 'w') do |f|
@@ -138,7 +154,7 @@ module ActsAsGit
               field_name = :"@#{field}"
               filename = filename_instance_method.bind(self).call
               index = @@repo.index
-              path = self.class.path(filename)
+              path = path(field)
               File.unlink(path) if File.exists?(path)
               begin
                 index.remove(filename)

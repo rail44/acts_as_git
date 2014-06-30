@@ -4,11 +4,26 @@ require_relative 'model'
 describe ActsAsGit do
   let(:subject) { TestPost.new }
   after do
-    File.unlink(TestPost.path subject.filename) if File.exist?(TestPost.path subject.filename)
+    path = subject.path(:body)
+    File.unlink(path) if File.exist?(path)
   end
 
   after(:context) do
     FileUtils.rm_rf(File.join(TestPost.repodir, '.git')) if Dir.exist?(File.join(TestPost.repodir, '.git'))
+  end
+
+  context '#log' do
+    let(:commits) { [] }
+    before { subject.body = 'aaaa' }
+    before { subject.save }
+    before { commits << subject.get_commit }
+    before { subject.body = 'bbbb' }
+    before { subject.save }
+    before { commits << subject.get_commit }
+    before { subject.body = 'cccc' }
+    before { subject.save }
+    before { commits << subject.get_commit }
+    it { expect(subject.log(:body)).to be == commits.reverse }
   end
 
   context '#body=' do
@@ -53,13 +68,13 @@ describe ActsAsGit do
     context 'save if body exists' do
       before { subject.body = 'aaaa' }
       before { subject.save }
-      it { expect(File.read(TestPost.path(subject.filename))).to eql('aaaa') }
+      it { expect(File.read(subject.path(:body))).to eql('aaaa') }
     end
 
     context 'does not save if body does not exist' do
       before { subject.body = nil }
       before { subject.save }
-      it { expect(File.exist?(TestPost.path(subject.filename))).to be_falsey }
+      it { expect(File.exist?(subject.path(:body))).to be_falsey }
     end
   end
 
@@ -68,12 +83,12 @@ describe ActsAsGit do
       before { subject.body = 'aaaa' }
       before { subject.save }
       before { subject.destroy }
-      it { expect(File.exist?(TestPost.path(subject.filename))).to be_falsey }
+      it { expect(File.exist?(subject.path(:body))).to be_falsey }
     end
 
     context 'fine even if file does not exist' do
       before { subject.destroy }
-      it { expect(File.exist?(TestPost.path(subject.filename))).to be_falsey }
+      it { expect(File.exist?(subject.path(:body))).to be_falsey }
     end
   end
 end
