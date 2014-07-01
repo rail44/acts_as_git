@@ -8,7 +8,7 @@ Gem::Specification.new do |s|
   s.homepage      = "https://github.com/rail44/acts_as_git"
   s.summary       = "Make your field act as a git repo"
   s.description   = "Make your field act as a git repo. Save the content to a file, and load the content from a file."
-  s.version       = '0.1.1'
+  s.version       = '0.2.0'
   s.date          = Time.now.strftime("%Y-%m-%d")
 
   s.extra_rdoc_files = Dir["*.rdoc"]
