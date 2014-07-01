@@ -49,22 +49,13 @@ module ActsAsGit
             Rugged::Repository.init_at(repodir)
             @@repo = Rugged::Repository.new(repodir)
           end
-          @@origin = @@repo.remotes['origin'] || @@repo.remotes.create('origin', @@remote) if @@remote
 
-          def current
-            if @current
-              @current
-            else
-             (@@repo.empty?)? nil: @@repo.head.target
-            end
-          end
-
-          def is_changed?
-            (@is_changed)? true: false
+          if @@remote
+            @@origin = @@repo.remotes['origin'] || @@repo.remotes.create('origin', @@remote) if @@remote
           end
 
           def self.head
-            @@repo.head.target
+            (@@repo.empty?)? nil: @@repo.head.target
           end
 
           def self.sync
@@ -75,6 +66,18 @@ module ActsAsGit
             @@repo.branches.delete(branch) if branch
             @@repo.create_branch('master')
             @@repo.checkout('master', :strategy => :force)
+          end
+
+          def current
+            if @current
+              @current
+            else
+              self.class.head
+            end
+          end
+
+          def is_changed?
+            (@is_changed)? true: false
           end
 
           define_method :path do |field|
