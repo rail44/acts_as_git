@@ -22,6 +22,11 @@ module ActsAsGit
       @@username = username
     end
 
+    @@remote = nil
+    def self.remote=(remote)
+      @@remote = remote
+    end
+
     def get_option(index)
       option = {}
       option[:author] = { :email => @@email, :name => @@username, :time => Time.now }
@@ -36,6 +41,15 @@ module ActsAsGit
     def acts_as_git(params = {})
       self.class_eval do
         unless method_defined?(:save_with_file)
+          repodir = self.repodir
+          FileUtils.mkdir_p(repodir)
+          begin
+            @@repo = Rugged::Repository.new(repodir)
+          rescue
+            Rugged::Repository.init_at(repodir)
+            @@repo = Rugged::Repository.new(repodir)
+          end
+          @@origin = @@repo.remotes['origin'] || @@repo.remotes.create('origin', @@remote) if @@remote
 
           def current
             if @current
@@ -81,13 +95,14 @@ module ActsAsGit
             self
           end
 
-          repodir = self.repodir
-          FileUtils.mkdir_p(repodir)
-          begin
-            @@repo = Rugged::Repository.new(repodir)
-          rescue
-            Rugged::Repository.init_at(repodir)
-            @@repo = Rugged::Repository.new(repodir)
+          def self.sync
+            cred = Rugged::Credentials::SshKeyFromAgent.new(username: 'git')
+            @@origin.fetch(credentials: cred)
+            branch = @@repo.branches["master"]
+            @@repo.checkout('origin/master', :strategy => :force)
+            @@repo.branches.delete(branch)
+            @@repo.create_branch('master')
+            @@repo.checkout('master', :strategy => :force)
           end
 
           define_method(:save_with_file) do |*args|
@@ -102,17 +117,13 @@ module ActsAsGit
                 path = path(field)
                 action = File.exists?(path)? 'Update': 'Create'
                 FileUtils.mkdir_p(File.dirname(path))
-                File.open(path, 'w') do |f|
-                  f.write(content)
-                end
                 index.add(path: filename, oid: oid, mode: 0100644)
                 option = self.class.get_option(index)
                 option[:message] = "#{action} #{filename} for field #{field_name} of #{self.class.name}"
                 Rugged::Commit.create(@@repo, option)
                 @current = @@repo.head.target
+                @@repo.checkout('HEAD', :strategy => :force)
                 @is_changed = false
-                index.read_tree(@current.tree)
-                index.write
                 instance_variable_set(field_name, nil)
               end
             end
@@ -154,17 +165,14 @@ module ActsAsGit
               field_name = :"@#{field}"
               filename = filename_instance_method.bind(self).call
               index = @@repo.index
-              path = path(field)
-              File.unlink(path) if File.exists?(path)
               begin
                 index.remove(filename)
                 option = self.class.get_option(index)
                 option[:message] = "Remove #{filename} for field #{field_name} of #{self.class.name}"
                 Rugged::Commit.create(@@repo, option)
                 @current = @@repo.head.target
+                @@repo.checkout('HEAD', :strategy => :force)
                 @is_changed = false
-                index.read_tree(@current.tree)
-                index.write
               rescue Rugged::IndexError => e
               end
             end
