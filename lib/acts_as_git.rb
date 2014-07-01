@@ -63,6 +63,20 @@ module ActsAsGit
             (@is_changed)? true: false
           end
 
+          def self.head
+            @@repo.head.target
+          end
+
+          def self.sync
+            cred = Rugged::Credentials::SshKeyFromAgent.new(username: 'git')
+            @@origin.fetch(credentials: cred)
+            @@repo.checkout('origin/master', :strategy => :force)
+            branch = @@repo.branches["master"]
+            @@repo.branches.delete(branch) if branch
+            @@repo.create_branch('master')
+            @@repo.checkout('master', :strategy => :force)
+          end
+
           define_method :path do |field|
             filename = params[field].bind(self).call
             File.join(self.class.repodir, filename)
@@ -93,16 +107,6 @@ module ActsAsGit
               field = nil
             end
             self
-          end
-
-          def self.sync
-            cred = Rugged::Credentials::SshKeyFromAgent.new(username: 'git')
-            @@origin.fetch(credentials: cred)
-            @@repo.checkout('origin/master', :strategy => :force)
-            branch = @@repo.branches["master"]
-            @@repo.branches.delete(branch) if branch
-            @@repo.create_branch('master')
-            @@repo.checkout('master', :strategy => :force)
           end
 
           define_method(:save_with_file) do |*args|
