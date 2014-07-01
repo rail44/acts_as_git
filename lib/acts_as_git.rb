@@ -98,9 +98,9 @@ module ActsAsGit
           def self.sync
             cred = Rugged::Credentials::SshKeyFromAgent.new(username: 'git')
             @@origin.fetch(credentials: cred)
-            branch = @@repo.branches["master"]
             @@repo.checkout('origin/master', :strategy => :force)
-            @@repo.branches.delete(branch)
+            branch = @@repo.branches["master"]
+            @@repo.branches.delete(branch) if branch
             @@repo.create_branch('master')
             @@repo.checkout('master', :strategy => :force)
           end
