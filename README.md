@@ -24,7 +24,7 @@ end
 post = Post.new # create the directory `self.repodir` if not exist, and init repo.
 post.body = 'content'
 post.save # save the content into the file of `#filename`
-post.get_commit
+post.current
   => COMMIT_HASH_HOGE
 
 # load
@@ -39,7 +39,7 @@ post.is_changed?
 post.save
 post.is_changed?
   => false
-post.get_commit
+post.current
   => COMMIT_HASH_FUGA
 puts post.body
   => 'content2'
