@@ -92,10 +92,10 @@ module ActsAsGit
             walker.push(@@repo.head.target)
             commits = []
             walker.map do |commit|
-              if commit.diff(paths: [path(field)])
+              if commit.diff(paths: [filename]).size > 0
                 commit
               end
-            end
+            end.compact
           end
 
           define_method :checkout do |commit|
@@ -160,7 +160,11 @@ module ActsAsGit
               return nil unless repodir
               return nil unless filename
               return nil if @@repo.empty?
-              return nil unless fileob = current.tree.path(filename)
+              begin
+                fileob = current.tree.path(filename)
+              rescue Rugged::TreeError
+                return nil
+              end
               oid = fileob[:oid]
               file = StringIO.new(@@repo.lookup(oid).content)
               file.seek(offset) if offset
