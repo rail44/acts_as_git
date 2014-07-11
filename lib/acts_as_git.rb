@@ -113,31 +113,32 @@ module ActsAsGit
           end
 
           define_method(:save_with_file) do |*args|
-            params.each do |field, filename_instance_method|
-              field_name = :"@#{field}"
-              repodir = self.class.repodir
-              filename = filename_instance_method.bind(self).call
-              content  = instance_variable_get(field_name)
-              if repodir and filename and content
-                oid = @@repo.write(content, :blob)
-                index = @@repo.index
-                path = path(field)
-                action = File.exists?(path)? 'Update': 'Create'
-                FileUtils.mkdir_p(File.dirname(path))
-                index.add(path: filename, oid: oid, mode: 0100644)
-                option = self.class.get_option(index)
-                option[:message] = "#{action} #{filename} for field #{field_name} of #{self.class.name}"
-                Rugged::Commit.create(@@repo, option)
-                @current = @@repo.head.target
-                @@repo.checkout('HEAD', :strategy => :force)
-                @is_changed = false
-                instance_variable_set(field_name, nil)
+            if save_without_file(*args)
+              params.each do |field, filename_instance_method|
+                field_name = :"@#{field}"
+                repodir = self.class.repodir
+                filename = filename_instance_method.bind(self).call
+                content  = instance_variable_get(field_name)
+                if repodir and filename and content
+                  oid = @@repo.write(content, :blob)
+                  index = @@repo.index
+                  path = path(field)
+                  action = File.exists?(path)? 'Update': 'Create'
+                  FileUtils.mkdir_p(File.dirname(path))
+                  index.add(path: filename, oid: oid, mode: 0100644)
+                  option = self.class.get_option(index)
+                  option[:message] = "#{action} #{filename} for field #{field_name} of #{self.class.name}"
+                  Rugged::Commit.create(@@repo, option)
+                  @current = @@repo.head.target
+                  @@repo.checkout('HEAD', :strategy => :force)
+                  @is_changed = false
+                  instance_variable_set(field_name, nil)
+                end
               end
             end
-            save_without_file(*args)
           end
 
-          define_method(:save) {|*args| } unless method_defined?(:save)
+          define_method(:save) {|*args| true } unless method_defined?(:save)
           alias_method :save_without_file, :save
           alias_method :save, :save_with_file
 
@@ -168,24 +169,25 @@ module ActsAsGit
           end
 
           define_method(:destroy_with_file) do
-            params.each do |field, filename_instance_method|
-              field_name = :"@#{field}"
-              filename = filename_instance_method.bind(self).call
-              index = @@repo.index
-              begin
-                index.remove(filename)
-                option = self.class.get_option(index)
-                option[:message] = "Remove #{filename} for field #{field_name} of #{self.class.name}"
-                Rugged::Commit.create(@@repo, option)
-                @current = @@repo.head.target
-                @@repo.checkout('HEAD', :strategy => :force)
-                @is_changed = false
-              rescue Rugged::IndexError => e
+            if destroy_without_file
+              params.each do |field, filename_instance_method|
+                field_name = :"@#{field}"
+                filename = filename_instance_method.bind(self).call
+                index = @@repo.index
+                begin
+                  index.remove(filename)
+                  option = self.class.get_option(index)
+                  option[:message] = "Remove #{filename} for field #{field_name} of #{self.class.name}"
+                  Rugged::Commit.create(@@repo, option)
+                  @current = @@repo.head.target
+                  @@repo.checkout('HEAD', :strategy => :force)
+                  @is_changed = false
+                rescue Rugged::IndexError => e
+                end
               end
             end
-            destroy_without_file
           end
-          define_method(:destroy) {} unless method_defined?(:destroy)
+          define_method(:destroy) {true} unless method_defined?(:destroy)
           alias_method :destroy_without_file, :destroy
           alias_method :destroy, :destroy_with_file
         end
